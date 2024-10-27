@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<routes>
+    <!-- Vehicle Types -->
+    <vType id="ego_vehicle" length="5.0" minGap="2.5" maxSpeed="13.89" sigma="0.5" 
+           lcStrategic="1.0" lcSpeedGain="1.0" lcKeepRight="0.0" 
+           accel="2.6" decel="4.5" color="1,0,0"/>
+    <vType id="normal_vehicle" length="5.0" minGap="2.5" maxSpeed="13.89" sigma="0.5" 
+           lcStrategic="0.5" lcSpeedGain="0.5" 
+           accel="2.6" decel="4.5" color="0,1,0"/>
+    
+    <!-- Routes -->
+    <route id="highway_route" edges="gneE10 gneE11 gneE12 gneE13 gneE14 gneE15 gneE8 gneE9" repeat="10"/>
+
+    <!-- Flows for background traffic with reduced probability and limited duration -->
+    <flow id="flow_0" type="normal_vehicle" route="highway_route" begin="0" end="180" probability="0.03" departLane="0">
+        <param key="has.rerouting.device" value="false"/>
+    </flow>
+    <flow id="flow_1" type="normal_vehicle" route="highway_route" begin="0" end="180" probability="0.03" departLane="1">
+        <param key="has.rerouting.device" value="false"/>
+    </flow>
+    <flow id="flow_2" type="normal_vehicle" route="highway_route" begin="0" end="180" probability="0.03" departLane="2">
+        <param key="has.rerouting.device" value="false"/>
+    </flow>
+    <flow id="flow_3" type="normal_vehicle" route="highway_route" begin="0" end="180" probability="0.03" departLane="3">
+        <param key="has.rerouting.device" value="false"/>
+    </flow>
+    <flow id="flow_4" type="normal_vehicle" route="highway_route" begin="0" end="180" probability="0.03" departLane="4">
+        <param key="has.rerouting.device" value="false"/>
+    </flow>
+
+    <!-- Replace the existing ego vehicle definition with this -->
+    <!-- Add this block after the other flow definitions -->
+    <flow id="ego_flow" type="ego_vehicle" route="highway_route" begin="0" period="350" number="1">
+        <param key="has.rerouting.device" value="false"/>
+        <param key="has.lanechange.device" value="true"/>
+    </flow>
+</routes>
