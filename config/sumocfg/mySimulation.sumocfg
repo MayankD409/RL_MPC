@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/sumoConfiguration.xsd">
+
+    <input>
+        <!-- The generated network -->
+        <net-file value="../myNetwork.net.xml"/>
+        <!-- The route file with traffic definition -->
+        <route-files value="../routes/myRoutes.rou.xml"/>
+    </input>
+
+    <time>
+        <!-- Start simulation at time 0 and go until time 600s (10 minutes) -->
+        <begin value="0"/>
+        <end value="600"/>
+        <!-- The simulation time step length in seconds -->
+        <step-length value="0.1"/>
+    </time>
+
+    <report>
+        <!-- Optional: add summary or other outputs -->
+    </report>
+
+    <processing>
+        <lateral-resolution value="0.8"/>
+    </processing>
+</configuration>

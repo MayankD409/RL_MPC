@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<types xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/types_file.xsd">
+
+    <!-- Define a 3-lane highway type with a high speed limit -->
+    <type id="highway_type" numLanes="3" speed="33.33" />
+    
+</types>
+
+<!-- Defines the road types (lane count, speed limit, etc.)-->
+
+

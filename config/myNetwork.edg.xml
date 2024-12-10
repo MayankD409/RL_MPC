@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<edges xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/edges_file.xsd">
+
+    <!-- Forward edge: start to end -->
+    <edge id="edge_start_end" from="start" to="end" type="highway_type" />
+    
+    <!-- Return edge: end to start to form a loop -->
+    <edge id="edge_end_start" from="end" to="start" type="highway_type" />
+    
+</edges>
+
+<!-- Defines the edges (road segments connecting nodes) -->

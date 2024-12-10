@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<routes xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/routes_file.xsd">
+
+    <!-- Define multiple vehicle types with different characteristics -->
+    <vType id="car" accel="2.5" decel="4.5" sigma="0.5" length="5" maxSpeed="30" color="1,0,0" guiShape="passenger"/>
+    <vType id="truck" accel="1.0" decel="2.0" sigma="0.5" length="10" maxSpeed="20" color="0,1,0" guiShape="truck"/>
+    <vType id="bus" accel="1.2" decel="2.5" sigma="0.5" length="12" maxSpeed="25" color="0,0,1" guiShape="bus"/>
+
+    <!-- Define a general traffic flow for cars -->
+    <flow id="flow_car" type="car" begin="0" end="600" number="100" from="edge_start_end" to="edge_end_start"
+          departLane="random" departSpeed="random"/>
+    
+    <!-- Define a general traffic flow for trucks -->
+    <flow id="flow_truck" type="truck" begin="0" end="600" number="50" from="edge_start_end" to="edge_end_start"
+          departLane="random" departSpeed="random"/>
+    
+    <!-- Define a general traffic flow for buses -->
+    <flow id="flow_bus" type="bus" begin="0" end="600" number="30" from="edge_start_end" to="edge_end_start"
+          departLane="random" departSpeed="random"/>
+
+    <!-- Define a separate route for the ego vehicle (will be added programmatically) -->
+    <!-- Alternatively, you can define it here if preferred -->
+    
+</routes>

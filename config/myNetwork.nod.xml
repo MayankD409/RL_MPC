@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<nodes xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/nodes_file.xsd">
+
+    <!-- Two nodes: start and end -->
+    <node id="start" x="0.0" y="0.0" type="priority"/>
+    <node id="end"   x="1000.0" y="0.0" type="priority"/>
+
+</nodes>
+<!-- Defines the nodes (intersections, junctions) -->

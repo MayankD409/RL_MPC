@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!-- generated on 2024-12-08 20:07:40 by Eclipse SUMO netconvert Version 1.21.0
+<netconvertConfiguration xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/netconvertConfiguration.xsd">
+
+    <input>
+        <node-files value="myNetwork.nod.xml"/>
+        <edge-files value="myNetwork.edg.xml"/>
+        <type-files value="myNetwork.typ.xml"/>
+    </input>
+
+    <output>
+        <output-file value="myNetwork.net.xml"/>
+    </output>
+
+    <junctions>
+        <no-turnarounds value="false"/>
+    </junctions>
+
+</netconvertConfiguration>
+-->
+
+<net version="1.20" junctionCornerDetail="5" limitTurnSpeed="5.50" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/net_file.xsd">
+
+    <location netOffset="0.00,0.00" convBoundary="0.00,0.00,1000.00,0.00" origBoundary="0.00,0.00,1000.00,0.00" projParameter="!"/>
+
+    <type id="highway_type" numLanes="3" speed="33.33"/>
+
+    <edge id=":end_0" function="internal">
+        <lane id=":end_0_0" index="0" speed="3.65" length="4.67" shape="1000.00,-1.60 1001.20,-0.80 1001.60,0.00 1001.20,0.80 1000.00,1.60"/>
+    </edge>
+    <edge id=":start_0" function="internal">
+        <lane id=":start_0_0" index="0" speed="3.65" length="4.67" shape="0.00,1.60 -1.20,0.80 -1.60,0.00 -1.20,-0.80 0.00,-1.60"/>
+    </edge>
+
+    <edge id="edge_end_start" from="end" to="start" priority="-1" type="highway_type">
+        <lane id="edge_end_start_0" index="0" speed="33.33" length="1000.00" shape="1000.00,8.00 0.00,8.00"/>
+        <lane id="edge_end_start_1" index="1" speed="33.33" length="1000.00" shape="1000.00,4.80 0.00,4.80"/>
+        <lane id="edge_end_start_2" index="2" speed="33.33" length="1000.00" shape="1000.00,1.60 0.00,1.60"/>
+    </edge>
+    <edge id="edge_start_end" from="start" to="end" priority="-1" type="highway_type">
+        <lane id="edge_start_end_0" index="0" speed="33.33" length="1000.00" shape="0.00,-8.00 1000.00,-8.00"/>
+        <lane id="edge_start_end_1" index="1" speed="33.33" length="1000.00" shape="0.00,-4.80 1000.00,-4.80"/>
+        <lane id="edge_start_end_2" index="2" speed="33.33" length="1000.00" shape="0.00,-1.60 1000.00,-1.60"/>
+    </edge>
+
+    <junction id="end" type="priority" x="1000.00" y="0.00" incLanes="edge_start_end_0 edge_start_end_1 edge_start_end_2" intLanes=":end_0_0" shape="1000.00,0.00 1000.00,-9.60 1000.00,0.00">
+        <request index="0" response="0" foes="0" cont="0"/>
+    </junction>
+    <junction id="start" type="priority" x="0.00" y="0.00" incLanes="edge_end_start_0 edge_end_start_1 edge_end_start_2" intLanes=":start_0_0" shape="0.00,0.00 0.00,9.60 0.00,0.00">
+        <request index="0" response="0" foes="0" cont="0"/>
+    </junction>
+
+    <connection from="edge_end_start" to="edge_start_end" fromLane="2" toLane="2" via=":start_0_0" dir="t" state="M"/>
+    <connection from="edge_start_end" to="edge_end_start" fromLane="2" toLane="2" via=":end_0_0" dir="t" state="M"/>
+
+    <connection from=":end_0" to="edge_end_start" fromLane="0" toLane="2" dir="t" state="M"/>
+    <connection from=":start_0" to="edge_start_end" fromLane="0" toLane="2" dir="t" state="M"/>
+
+</net>
