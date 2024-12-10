@@ -4,22 +4,19 @@ import math
 import random
 import csv
 import traci
+import time
 
-# Path to the SUMO configuration file
-# Person A can prepare multiple scenario config files or route files and select one randomly:
+# Path to the SUMO configuration files
+# These scenario files differ by different route files or traffic flows.
 SCENARIO_CONFIG_FILES = [
     "config/sumocfg/mySimulation_light.sumocfg",
     "config/sumocfg/mySimulation_medium.sumocfg",
     "config/sumocfg/mySimulation_heavy.sumocfg"
 ]
 
-# If these scenario files differ by different route files or traffic flows,
-# Person A can maintain them. For demonstration, we assume these files exist.
-# If not, Person A must create them with different route distributions.
-
 # Set a random scenario for diversity
-SELECTED_CONFIG = random.choice(SCENARIO_CONFIG_FILES)
-# SELECTED_CONFIG = "config/sumocfg/mySimulation.sumocfg"
+# SELECTED_CONFIG = random.choice(SCENARIO_CONFIG_FILES)
+SELECTED_CONFIG = "config/sumocfg/mySimulation.sumocfg"
 
 # -------------------------------
 # Configuration Parameters
@@ -47,7 +44,7 @@ LANE_SPEEDS = {
 LOG_DATA = True
 LOG_FILE = "simulation_data_log.csv"
 
-# Track previous ego states for comfort metrics (jerk calculation)
+# Track previous ego states for jerk calculation
 previous_ego_speed = None
 previous_ego_acc = None
 previous_ego_time = None
@@ -59,7 +56,7 @@ UNSAFE_PROXIMITY_THRESHOLD = 5  # Steps of continuous unsafe proximity before te
 def apply_mpc_weights(W_s, W_e, W_c):
     """
     Placeholder function for applying MPC weights.
-    Person B would call this after deciding on an action.
+    Tanmay would call this after deciding on an action.
     Currently, just prints the weights to demonstrate the interface.
     """
     print(f"Applying MPC weights: Safety={W_s:.2f}, Efficiency={W_e:.2f}, Comfort={W_c:.2f}")
@@ -68,8 +65,10 @@ def add_ego_vehicle():
     """Add the ego vehicle with random initial conditions."""
     ego_id = "ego"
     initial_lane = random.randint(0, 2)
+    # initial_lane = 2
     initial_speed = random.uniform(0, 10)
     target_lane = random.choice([l for l in [0,1,2] if l != initial_lane])
+    # target_lane = 0
 
     # Ensure route exists for ego
     if "ego_route" not in traci.route.getIDList():
@@ -84,6 +83,9 @@ def add_ego_vehicle():
         departSpeed=str(initial_speed),
         departPos="0"
     )
+
+    # Set the color of the ego vehicle to white
+    traci.vehicle.setColor(ego_id, (255, 255, 255))  
 
     return {
         "id": ego_id,
@@ -231,8 +233,7 @@ def check_safety_violations(lane_data, ego_lane_id):
 
 def compute_comfort_metrics(ego_id, step_time=0.1):
     """
-    Compute approximate jerk as a comfort metric.
-    SUMO does not directly provide acceleration or jerk, but we can estimate acceleration:
+    Compute approximate jerk as a comfort metric.:
     acc = (v_current - v_previous)/delta_t
     jerk = (acc_current - acc_previous)/delta_t
     """
@@ -265,7 +266,7 @@ def randomize_scenario():
     """
     Randomize scenario by choosing a different config file and possibly different routes.
     Since SUMO configuration is started externally, we just selected SELECTED_CONFIG.
-    Person A can create multiple scenario config files with different route distributions.
+    I have created multiple scenario config files with different route distributions.
     """
     print(f"Selected scenario config: {SELECTED_CONFIG}")
 
@@ -286,6 +287,7 @@ def log_data(step, ego_state, lane_risks, W_s, W_e, W_c, acc, jerk):
 
 def run_simulation():
     randomize_scenario()
+    speed_factor = 0.5
     traci.start(["sumo-gui", "-c", SELECTED_CONFIG, "--start", "--no-step-log", "true"])
 
     # Set distinct lane speeds
@@ -358,15 +360,18 @@ def run_simulation():
             "target_lane": target_lane
         }
 
-        # Example: Person B might send updated weights based on their RL policy:
+        # Tanmay will send updated weights based on the RL policy:
         # For now, we keep them constant or just print them
         # apply_mpc_weights(W_s, W_e, W_c)
 
         # Log data for analysis
         log_data(step, ego_state, lane_risks, W_s, W_e, W_c, acc, jerk)
 
+        delay = 0.1
+        # time.sleep(delay)
+
         # In a real integration:
-        # Person B would read state_data, compute action (W_s, W_e, W_c), call apply_mpc_weights,
+        # Tanmay would read state_data, compute action (W_s, W_e, W_c), call apply_mpc_weights,
         # and then Person A's code continues to next step.
 
     traci.close()
