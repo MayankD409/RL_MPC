@@ -4,7 +4,7 @@
 
     <input>
         <!-- The generated network -->
-        <net-file value="../myNetwork.net.xml"/>
+        <net-file value="../network/myNetwork.net.xml"/>
         <!-- The route file with traffic definition -->
         <route-files value="../routes/myRoutes.rou.xml"/>
     </input>

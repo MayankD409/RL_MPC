@@ -8,9 +8,9 @@ import traci
 # Path to the SUMO configuration file
 # Person A can prepare multiple scenario config files or route files and select one randomly:
 SCENARIO_CONFIG_FILES = [
-    "config/mySimulation_light.sumocfg",
-    "config/mySimulation_medium.sumocfg",
-    "config/mySimulation_heavy.sumocfg"
+    "config/sumocfg/mySimulation_light.sumocfg",
+    "config/sumocfg/mySimulation_medium.sumocfg",
+    "config/sumocfg/mySimulation_heavy.sumocfg"
 ]
 
 # If these scenario files differ by different route files or traffic flows,
@@ -18,8 +18,8 @@ SCENARIO_CONFIG_FILES = [
 # If not, Person A must create them with different route distributions.
 
 # Set a random scenario for diversity
-# SELECTED_CONFIG = random.choice(SCENARIO_CONFIG_FILES)
-SELECTED_CONFIG = "config/sumocfg/mySimulation.sumocfg"
+SELECTED_CONFIG = random.choice(SCENARIO_CONFIG_FILES)
+# SELECTED_CONFIG = "config/sumocfg/mySimulation.sumocfg"
 
 # -------------------------------
 # Configuration Parameters
