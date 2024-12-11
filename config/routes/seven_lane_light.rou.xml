@@ -4,11 +4,11 @@
     <vType id="truck" accel="1.0" decel="2.0" length="10" maxSpeed="20" sigma="0.5" guiShape="truck"/>
     <vType id="bus" accel="1.2" decel="2.5" length="12" maxSpeed="25" sigma="0.5" guiShape="bus"/>
 
-    <!-- Light traffic -->
-    <flow id="flow_car_light" type="car" begin="0" end="600" number="50" from="edge_start_end" to="edge_start_end"
+    <!-- Heavy traffic -->
+    <flow id="flow_car_heavy" type="car" begin="0" end="600" number="600" from="edge_start_end" to="edge_start_end"
           departLane="random" departSpeed="random"/>
-    <flow id="flow_truck_light" type="truck" begin="0" end="600" number="20" from="edge_start_end" to="edge_start_end"
+    <flow id="flow_truck_heavy" type="truck" begin="0" end="600" number="300" from="edge_start_end" to="edge_start_end"
           departLane="random" departSpeed="random"/>
-    <flow id="flow_bus_light" type="bus" begin="0" end="600" number="10" from="edge_start_end" to="edge_start_end"
+    <flow id="flow_bus_heavy" type="bus" begin="0" end="600" number="180" from="edge_start_end" to="edge_start_end"
           departLane="random" departSpeed="random"/>
 </routes>

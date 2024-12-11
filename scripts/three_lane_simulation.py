@@ -6,7 +6,6 @@ import csv
 import traci
 import time
 import logging
-import numpy as np
 
 # Import the MPC controller
 from mpc_controller import MPCController
@@ -17,7 +16,7 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
         logging.FileHandler("mpc_simulation.log"),  # Log to file
-        # logging.StreamHandler(sys.stdout)  # Log to console
+        logging.StreamHandler(sys.stdout)  # Log to console
     ]
 )
 
@@ -26,21 +25,21 @@ logger = logging.getLogger("RunSimulation")
 
 # Path to the SUMO configuration files. These scenario files differ by different route files or traffic flows.
 SCENARIO_CONFIG_FILES = [
-    "config/sumocfg/seven_lane_light.sumocfg",
-    "config/sumocfg/seven_lane_medium.sumocfg",
-    "config/sumocfg/seven_lane_heavy.sumocfg"
+    "config/sumocfg/mySimulation_light.sumocfg",
+    "config/sumocfg/mySimulation_medium.sumocfg",
+    "config/sumocfg/mySimulation_heavy.sumocfg"
 ]
 
 # Set a random scenario for diversity
 # SELECTED_CONFIG = random.choice(SCENARIO_CONFIG_FILES)
-SELECTED_CONFIG = "config/sumocfg/seven_lane_heavy.sumocfg"
+SELECTED_CONFIG = "config/sumocfg/mySimulation.sumocfg"
 
 # -------------------------------
 # Configuration Parameters
 # -------------------------------
-MAX_STEPS = 5000          # ~300s if step-length=0.1s
+MAX_STEPS = 3000          # ~300s if step-length=0.1s
 STABLE_STEPS_REQUIRED = 50
-PROXIMITY_DISTANCE = 20.0
+PROXIMITY_DISTANCE = 50.0
 COLLISION_DISTANCE = 1.0
 RISK_OCCUPANCY_HIGH = 0.4
 RISK_OCCUPANCY_MED = 0.2
@@ -52,10 +51,9 @@ LANE_SPEEDS = {
     "edge_start_end_0": 25.0,   # slow lane
     "edge_start_end_1": 30.0,   # medium speed lane
     "edge_start_end_2": 33.33,  # fast lane
-    "edge_start_end_3": 20.0,   # slow lane
-    "edge_start_end_4": 28.0,   # medium speed lane
-    "edge_start_end_5": 30.0,  # fast lane
-    "edge_start_end_6": 33.33
+    "edge_end_start_0": 25.0,
+    "edge_end_start_1": 30.0,
+    "edge_end_start_2": 33.33
 }
 
 # Logging options
@@ -82,11 +80,12 @@ def apply_mpc_weights(W_s, W_e, W_c):
 def add_ego_vehicle():
     """Add the ego vehicle with random initial conditions."""
     ego_id = "ego"
-    initial_lane = random.randint(0, 6)
-    # initial_lane = 0
+    # initial_lane = random.randint(0, 2)
+    initial_lane = 0
     initial_speed = random.uniform(0, 10)
-    target_lane = random.choice([l for l in range(7) if l != initial_lane])
-    # target_lane = 5
+    # target_lane = random.choice([l for l in [0,1,2] if l != initial_lane])
+    target_lane = 1
+
     logger.debug("Adding ego vehicle with the following parameters:")
     logger.debug(f"Vehicle ID: {ego_id}")
     logger.debug(f"Initial Lane: {initial_lane}")
@@ -95,7 +94,7 @@ def add_ego_vehicle():
 
     # Ensure route exists for ego
     if "ego_route" not in traci.route.getIDList():
-        traci.route.add("ego_route", ["edge_start_end"])
+        traci.route.add("ego_route", ["edge_start_end", "edge_end_start"])
         logger.debug("Added 'ego_route' to SUMO routes.")
 
     traci.vehicle.add(
@@ -119,13 +118,6 @@ def add_ego_vehicle():
         "initial_speed": initial_speed
     }
 
-def get_all_lanes():
-    # Since we have one edge "edge_start_end" with 7 lanes:
-    edge_id = "edge_start_end"
-    lane_count = 7  # known from network file
-    lanes = [f"{edge_id}_{i}" for i in range(lane_count)]
-    return lanes
-
 def set_lane_speeds():
     """Set distinct lane speeds to differentiate lane attributes."""
     for lane_id, speed in LANE_SPEEDS.items():
@@ -147,7 +139,17 @@ def get_lane_info(ego_id):
         logger.error(f"Error retrieving lane ID or position for ego vehicle '{ego_id}': {e}")
         return None
 
-    lanes = get_all_lanes()
+    # Dynamically get all lanes from the network:
+    all_edges = traci.edge.getIDList()
+    lanes = []
+    for e in all_edges:
+        lane_count = traci.edge.getLaneNumber(e)
+        for i in range(lane_count):
+            lane_id = f"{e}_{i}"
+            lanes.append(lane_id)
+    # Also consider junction lanes if needed (they usually appear as ":..."),
+    # you can get them via traci.lane.getIDList() if required:
+    lanes.extend([lid for lid in traci.lane.getIDList() if lid.startswith(":")])
     lane_data = {}
 
     for lane in lanes:
@@ -356,180 +358,125 @@ def log_data(step, ego_state, lane_risks, W_s, W_e, W_c, acc, jerk):
         except Exception as e:
             logger.error(f"Failed to log data for step {step}: {e}")
 
-def construct_rl_state(ego_state, lane_data, lane_risks):
-    logger.debug("Constructing RL state from ego_state and lane_data.")
-    max_speed = 33.33
-    ego_x, ego_y = ego_state["position"]
-    ego_speed = ego_state["speed"]/max_speed
-    current_lane_id = ego_state["lane_id"]
-    current_lane_index = int(current_lane_id.split("_")[-1])
-    target_lane = ego_state["target_lane"]
+def run_simulation():
+    try:
+        randomize_scenario()
+        traci.start(["sumo-gui", "-c", SELECTED_CONFIG, "--start", "--no-step-log", "true"])
+        logger.info("SUMO simulation started.")
+    except Exception as e:
+        logger.critical(f"Failed to start SUMO simulation: {e}")
+        sys.exit(1)
+    try:
+        # Set distinct lane speeds
+        set_lane_speeds()
 
-    lanes = get_all_lanes()
-    lane_features = []
-    for lane in lanes:
-        ld = lane_data[lane]
-        occ = ld["occupancy"]
-        avg_sp = ld["avg_speed"]/max_speed
-        r = lane_risks[lane]/2.0
-        lane_features += [occ, avg_sp, r]
+        # Add ego vehicle
+        ego_info = add_ego_vehicle()
+        ego_id = ego_info["id"]
+        target_lane = ego_info["target_lane"]
 
-    ego_x_norm = ego_x/2000.0
-    current_lane_norm = current_lane_index/6.0
-    target_lane_norm = target_lane/6.0
-
-    state = [ego_x_norm, ego_speed, current_lane_norm, target_lane_norm] + lane_features
-    rl_state = np.array(state, dtype=np.float32)
-
-    logger.debug(f"RL State: position_norm={ego_x_norm}, speed_norm={ego_speed}, current_lane_norm={current_lane_norm}, target_lane_norm={target_lane_norm}, lane_features={lane_features}")
-    return rl_state
-
-def compute_reward(collision, stable, timeout, safety_violation, lane_data, lane_risks, acc, jerk):
-    reward = 0.0
-    reason = ""
-    if stable:
-        reward += 10.0
-        reason += "StableLaneChange "
-    if collision:
-        reward -= 10.0
-        reason += "Collision "
-    if timeout:
-        reward -= 5.0
-        reason += "Timeout "
-    if safety_violation:
-        reward -= 2.0
-        reason += "SafetyViolation "
-
-    if jerk is not None:
-        jerk_penalty = abs(jerk)*0.1
-        reward -= jerk_penalty
-
-    return reward, reason.strip()
-
-def run_episode(mpc, rl_agent, scenario_config, max_steps=3000):
-    import tqdm
-    logger.info(f"Starting run_episode with scenario {scenario_config}.")
-    traci.start(["sumo-gui", "-c", scenario_config, "--start", "--no-step-log", "true"])
-
-    WARMUP_STEPS = 500
-    logger.info(f"Running warmup for {WARMUP_STEPS} steps to build traffic.")
-    for _ in range(WARMUP_STEPS):
         traci.simulationStep()
+        logger.info("Initial simulation step completed.")
 
-    ego_info = add_ego_vehicle()
-    ego_id = ego_info["id"]
-    target_lane = ego_info["target_lane"]
+        initialize_logging()
 
-    traci.simulationStep()
-    initialize_logging()
+        step = 0
+        stable_lane_steps = 0
 
-    step = 0
-    stable_lane_steps = 0
-    done = False
-    episode_reward = 0.0
-    reason_for_termination = ""
+        # Initialize MPC Controller
+        mpc = MPCController(wheelbase=2.5, max_acc=2.0, max_decel=-4.5, max_speed=33.33, lane_width=3.2, horizon=10, dt=0.1)
+        logger.info("MPC Controller initialized.")
 
-    pbar = tqdm.tqdm(total=max_steps, desc="Episode Running", leave=False)
-
-    while not done and step < max_steps:
-        if step == 0:
-            for _ in range(20):
-                traci.simulationStep()
-        traci.simulationStep()
-        step += 1
-        pbar.update(1)
-
-        if ego_id not in traci.vehicle.getIDList():
-            logger.info("Ego vehicle no longer in simulation (possibly route ended).")
-            done = True
-            reason_for_termination = "EgoVehicleLeftSimulation"
-            break
-
-        lane_data = get_lane_info(ego_id)
-        if lane_data is None:
-            logger.warning("Lane data is None, ending episode.")
-            done = True
-            reason_for_termination = "NoLaneData"
-            break
-
-        ego_lane_id = traci.vehicle.getLaneID(ego_id)
-        lane_risks = compute_lane_risk(lane_data, ego_lane_id)
-        acc_val, jerk_val = compute_comfort_metrics(ego_id)
-
-        collision = check_collision(ego_id)
-        stable_lane_steps, stable = check_lane_change_completion(ego_id, target_lane, stable_lane_steps)
-        timeout = check_timeout(step)
-        safety_violation = check_safety_violations(lane_data, ego_lane_id)
-
-        ego_x, ego_y = traci.vehicle.getPosition(ego_id)
-        ego_speed = traci.vehicle.getSpeed(ego_id)
-        ego_state = {
-            "position": (ego_x, ego_y),
-            "speed": ego_speed,
-            "lane_id": ego_lane_id,
-            "target_lane": target_lane
-        }
-
-        rl_state = construct_rl_state(ego_state, lane_data, lane_risks)
-
-        W_s, W_e, W_c = rl_agent.get_action(rl_state)
+        # Fixed weights for now (Person C baseline)
+        W_s, W_e, W_c = 1.0, 1.0, 1.0
         mpc.set_weights(W_s, W_e, W_c)
         apply_mpc_weights(W_s, W_e, W_c)
 
-        acc_cmd, lane_change_cmd = mpc.compute_control(ego_state, lane_data, lane_risks, target_lane)
-        desired_speed = max(0, min(ego_speed + acc_cmd*0.1, mpc.max_speed))
-        traci.vehicle.setSpeed(ego_id, desired_speed)
+        logger.info(f"Initial MPC weights set: W_s={W_s}, W_e={W_e}, W_c={W_c}")
 
-        if lane_change_cmd is not None:
-            new_lane_index, duration = lane_change_cmd
-            traci.vehicle.changeLane(ego_id, new_lane_index, int(duration / 0.1))
+        while True:
+            traci.simulationStep()
+            step += 1
+            logger.debug(f"Simulation step {step} started.")
 
-        reward, reason_segment = compute_reward(collision, stable, timeout, safety_violation, lane_data, lane_risks, acc_val, jerk_val)
-        episode_reward += reward
 
-        if (collision or stable or timeout or safety_violation or step>=max_steps) and reason_for_termination=="":
-            reason_for_termination = reason_segment if reason_segment!="" else "MaxStepsReached"
+            vehicle_ids = traci.vehicle.getIDList()
+            if ego_id not in vehicle_ids:
+                logger.error(f"Vehicle '{ego_id}' has left the simulation (possibly route ended).")
+                break
 
-        done = collision or stable or timeout or safety_violation or step >= max_steps
+            lane_data = get_lane_info(ego_id)
+            if lane_data is None:
+                logger.error(f"Failed to retrieve lane data for '{ego_id}'. Ending episode.")
+                break
 
-        if ego_id in traci.vehicle.getIDList():
-            next_ego_x, next_ego_y = traci.vehicle.getPosition(ego_id)
-            next_ego_speed = traci.vehicle.getSpeed(ego_id)
-            next_ego_state = {
-                "position": (next_ego_x, next_ego_y),
-                "speed": next_ego_speed,
-                "lane_id": traci.vehicle.getLaneID(ego_id),
+            ego_lane_id = traci.vehicle.getLaneID(ego_id)
+            lane_risks = compute_lane_risk(lane_data, ego_lane_id)
+
+            # Compute comfort metrics
+            acc, jerk = compute_comfort_metrics(ego_id)
+
+            # Check collisions
+            if check_collision(ego_id):
+                logger.error("Collision occurred. Ending episode.")
+                break
+
+            # Check lane change completion
+            stable_lane_steps, stable = check_lane_change_completion(ego_id, target_lane, stable_lane_steps)
+            if stable:
+                logger.info("Lane change completed and stabilized (success).")
+                break
+
+            # Check timeout
+            if check_timeout(step):
+                logger.warning("Timeout reached. Ending episode.")
+                break
+
+            # Check safety violations
+            if check_safety_violations(lane_data, ego_lane_id):
+                logger.warning("Safety violation detected. Ending episode.")
+                break
+
+            # Gather ego state for RL
+            ego_x, ego_y = traci.vehicle.getPosition(ego_id)
+            ego_speed = traci.vehicle.getSpeed(ego_id)
+            ego_state = {
+                "position": (ego_x, ego_y),
+                "speed": ego_speed,
+                "lane_id": ego_lane_id,
                 "target_lane": target_lane
             }
-            next_lane_data = get_lane_info(ego_id)
-            next_lane_risks = compute_lane_risk(next_lane_data, next_ego_state["lane_id"]) if next_lane_data else lane_risks
-            next_rl_state = construct_rl_state(next_ego_state, next_lane_data, next_lane_risks)
-        else:
-            next_rl_state = rl_state
 
-        rl_agent.store_transition(rl_state, np.array([W_s,W_e,W_c],dtype=np.float32), reward, next_rl_state, done)
-        rl_agent.update_networks()
+            logger.debug(f"Ego State at step {step}: {ego_state}")
 
-        log_data(step, ego_state, lane_risks, W_s, W_e, W_c, acc_val, jerk_val)
+            # Solve MPC
+            acc_cmd, lane_change_cmd = mpc.compute_control(ego_state, lane_data, lane_risks, target_lane)
+            logger.debug(f"MPC Control Commands at step {step}: Acceleration={acc_cmd}, Lane Change Command={lane_change_cmd}")
 
-        # delay = 0.1
-        # time.sleep(delay)
+            # Apply controls
+            try:
+                desired_speed = max(0, min(ego_speed + acc_cmd*0.1, mpc.max_speed))
+                traci.vehicle.setSpeed(ego_id, desired_speed)
+                logger.debug(f"Applied desired_speed {desired_speed} to ego vehicle '{ego_id}'.")
 
-    traci.close()
-    logger.info(f"Episode ended with total reward: {episode_reward}")
-    pbar.close()
-    print(f"Episode finished. Reward: {episode_reward:.2f}, Reason: {reason_for_termination}")
-    return episode_reward, done, reason_for_termination
+                if lane_change_cmd is not None:
+                    new_lane_index, duration = lane_change_cmd
+                    traci.vehicle.changeLane(ego_id, new_lane_index, int(duration / mpc.dt))
+                    logger.info(f"Lane change command issued: Change to lane {new_lane_index} over {duration} seconds.")
+            except traci.exceptions.TraCIException as e:
+                logger.error(f"Error applying control commands to ego vehicle '{ego_id}': {e}")
+
+            # Log data for analysis
+            log_data(step, ego_state, lane_risks, W_s, W_e, W_c, acc, jerk)
+
+            # delay = 0.1
+            # time.sleep(delay)
+    except Exception as e:
+        logger.critical(f"An unexpected error occurred during the simulation: {e}")
+    finally:
+        traci.close()
+        logger.info("SUMO simulation closed.")
+        print("Episode ended.")
 
 if __name__ == "__main__":
-    # Example usage if you just want to run a single episode with fixed agent (not learning)
-    from mpc_controller import MPCController
-    class DummyAgent:
-        def get_action(self, state):
-            return 1.0, 1.0, 1.0
-        def store_transition(self,s,a,r,ns,d): pass
-        def update_networks(self): pass
-
-    scenario = random.choice(SCENARIO_CONFIG_FILES)
-    mpc = MPCController()
-    run_episode(mpc, DummyAgent(), scenario)
+    run_simulation()

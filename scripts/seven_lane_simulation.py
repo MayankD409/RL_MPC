@@ -25,14 +25,14 @@ logger = logging.getLogger("RunSimulation")
 
 # Path to the SUMO configuration files. These scenario files differ by different route files or traffic flows.
 SCENARIO_CONFIG_FILES = [
-    "config/sumocfg/seven_lane_heavy.sumocfg",
-    "config/sumocfg/seven_lane_heavy.sumocfg",
+    "config/sumocfg/seven_lane_light.sumocfg",
+    "config/sumocfg/seven_lane_medium.sumocfg",
     "config/sumocfg/seven_lane_heavy.sumocfg"
 ]
 
 # Set a random scenario for diversity
-SELECTED_CONFIG = random.choice(SCENARIO_CONFIG_FILES)
-# SELECTED_CONFIG = "config/sumocfg/mySimulation.sumocfg"
+# SELECTED_CONFIG = random.choice(SCENARIO_CONFIG_FILES)
+SELECTED_CONFIG = "config/sumocfg/seven_lane_heavy.sumocfg"
 
 # -------------------------------
 # Configuration Parameters
