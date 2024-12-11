@@ -25,19 +25,19 @@ logger = logging.getLogger("RunSimulation")
 
 # Path to the SUMO configuration files. These scenario files differ by different route files or traffic flows.
 SCENARIO_CONFIG_FILES = [
-    "config/sumocfg/mySimulation_light.sumocfg",
-    "config/sumocfg/mySimulation_medium.sumocfg",
-    "config/sumocfg/mySimulation_heavy.sumocfg"
+    "config/sumocfg/seven_lane_heavy.sumocfg",
+    "config/sumocfg/seven_lane_heavy.sumocfg",
+    "config/sumocfg/seven_lane_heavy.sumocfg"
 ]
 
 # Set a random scenario for diversity
-# SELECTED_CONFIG = random.choice(SCENARIO_CONFIG_FILES)
-SELECTED_CONFIG = "config/sumocfg/mySimulation.sumocfg"
+SELECTED_CONFIG = random.choice(SCENARIO_CONFIG_FILES)
+# SELECTED_CONFIG = "config/sumocfg/mySimulation.sumocfg"
 
 # -------------------------------
 # Configuration Parameters
 # -------------------------------
-MAX_STEPS = 3000          # ~300s if step-length=0.1s
+MAX_STEPS = 5000          # ~300s if step-length=0.1s
 STABLE_STEPS_REQUIRED = 50
 PROXIMITY_DISTANCE = 50.0
 COLLISION_DISTANCE = 1.0
@@ -51,9 +51,10 @@ LANE_SPEEDS = {
     "edge_start_end_0": 25.0,   # slow lane
     "edge_start_end_1": 30.0,   # medium speed lane
     "edge_start_end_2": 33.33,  # fast lane
-    "edge_end_start_0": 25.0,
-    "edge_end_start_1": 30.0,
-    "edge_end_start_2": 33.33
+    "edge_start_end_3": 20.0,   # slow lane
+    "edge_start_end_4": 28.0,   # medium speed lane
+    "edge_start_end_5": 30.0,  # fast lane
+    "edge_start_end_6": 33.33
 }
 
 # Logging options
@@ -80,12 +81,11 @@ def apply_mpc_weights(W_s, W_e, W_c):
 def add_ego_vehicle():
     """Add the ego vehicle with random initial conditions."""
     ego_id = "ego"
-    # initial_lane = random.randint(0, 2)
+    # initial_lane = random.randint(0, 6)
     initial_lane = 0
     initial_speed = random.uniform(0, 10)
-    # target_lane = random.choice([l for l in [0,1,2] if l != initial_lane])
-    target_lane = 1
-
+    # target_lane = random.choice([l for l in range(7) if l != initial_lane])
+    target_lane = 5
     logger.debug("Adding ego vehicle with the following parameters:")
     logger.debug(f"Vehicle ID: {ego_id}")
     logger.debug(f"Initial Lane: {initial_lane}")
@@ -94,7 +94,7 @@ def add_ego_vehicle():
 
     # Ensure route exists for ego
     if "ego_route" not in traci.route.getIDList():
-        traci.route.add("ego_route", ["edge_start_end", "edge_end_start"])
+        traci.route.add("ego_route", ["edge_start_end"])
         logger.debug("Added 'ego_route' to SUMO routes.")
 
     traci.vehicle.add(
@@ -118,6 +118,13 @@ def add_ego_vehicle():
         "initial_speed": initial_speed
     }
 
+def get_all_lanes():
+    # Since we have one edge "edge_start_end" with 7 lanes:
+    edge_id = "edge_start_end"
+    lane_count = 7  # known from network file
+    lanes = [f"{edge_id}_{i}" for i in range(lane_count)]
+    return lanes
+
 def set_lane_speeds():
     """Set distinct lane speeds to differentiate lane attributes."""
     for lane_id, speed in LANE_SPEEDS.items():
@@ -139,17 +146,7 @@ def get_lane_info(ego_id):
         logger.error(f"Error retrieving lane ID or position for ego vehicle '{ego_id}': {e}")
         return None
 
-    # Dynamically get all lanes from the network:
-    all_edges = traci.edge.getIDList()
-    lanes = []
-    for e in all_edges:
-        lane_count = traci.edge.getLaneNumber(e)
-        for i in range(lane_count):
-            lane_id = f"{e}_{i}"
-            lanes.append(lane_id)
-    # Also consider junction lanes if needed (they usually appear as ":..."),
-    # you can get them via traci.lane.getIDList() if required:
-    lanes.extend([lid for lid in traci.lane.getIDList() if lid.startswith(":")])
+    lanes = get_all_lanes()
     lane_data = {}
 
     for lane in lanes:
@@ -359,6 +356,8 @@ def log_data(step, ego_state, lane_risks, W_s, W_e, W_c, acc, jerk):
             logger.error(f"Failed to log data for step {step}: {e}")
 
 def run_simulation():
+    # Number of steps to run before adding ego vehicle
+    WARMUP_STEPS = 2000
     try:
         randomize_scenario()
         traci.start(["sumo-gui", "-c", SELECTED_CONFIG, "--start", "--no-step-log", "true"])
@@ -370,10 +369,16 @@ def run_simulation():
         # Set distinct lane speeds
         set_lane_speeds()
 
+        for _ in range(WARMUP_STEPS):
+            traci.simulationStep()
+
+
         # Add ego vehicle
         ego_info = add_ego_vehicle()
         ego_id = ego_info["id"]
         target_lane = ego_info["target_lane"]
+
+        traci.vehicle.setLaneChangeMode(ego_id, 1621)  # Set lane change mode to "strategic"
 
         traci.simulationStep()
         logger.info("Initial simulation step completed.")
@@ -469,8 +474,8 @@ def run_simulation():
             # Log data for analysis
             log_data(step, ego_state, lane_risks, W_s, W_e, W_c, acc, jerk)
 
-            # delay = 0.1
-            # time.sleep(delay)
+            delay = 0.1
+            time.sleep(delay)
     except Exception as e:
         logger.critical(f"An unexpected error occurred during the simulation: {e}")
     finally:

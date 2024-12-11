@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<types>
+    <!-- 7-lane straight road, speed ~120 km/h -->
+    <type id="my_road_type" numLanes="7" speed="33.33" laneAlignment="right"/>
+</types>

@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<edges>
+    <edge id="edge_start_end" from="start" to="end" type="my_road_type" />
+</edges>

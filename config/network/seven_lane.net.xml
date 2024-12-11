@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!-- generated on 2024-12-11 00:24:28 by Eclipse SUMO netconvert Version 1.21.0
+<netconvertConfiguration xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/netconvertConfiguration.xsd">
+
+    <input>
+        <node-files value="seven_lane.nod.xml"/>
+        <edge-files value="seven_lane.edg.xml"/>
+        <type-files value="seven_lane.typ.xml"/>
+    </input>
+
+    <output>
+        <output-file value="seven_lane.net.xml"/>
+    </output>
+
+</netconvertConfiguration>
+-->
+
+<net version="1.20" junctionCornerDetail="5" limitTurnSpeed="5.50" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/net_file.xsd">
+
+    <location netOffset="0.00,0.00" convBoundary="0.00,0.00,1000.00,0.00" origBoundary="0.00,0.00,1000.00,0.00" projParameter="!"/>
+
+    <type id="my_road_type" numLanes="7" speed="33.33"/>
+
+    <edge id="edge_start_end" from="start" to="end" priority="-1" type="my_road_type">
+        <lane id="edge_start_end_0" index="0" speed="33.33" length="1000.00" shape="0.00,-20.80 1000.00,-20.80"/>
+        <lane id="edge_start_end_1" index="1" speed="33.33" length="1000.00" shape="0.00,-17.60 1000.00,-17.60"/>
+        <lane id="edge_start_end_2" index="2" speed="33.33" length="1000.00" shape="0.00,-14.40 1000.00,-14.40"/>
+        <lane id="edge_start_end_3" index="3" speed="33.33" length="1000.00" shape="0.00,-11.20 1000.00,-11.20"/>
+        <lane id="edge_start_end_4" index="4" speed="33.33" length="1000.00" shape="0.00,-8.00 1000.00,-8.00"/>
+        <lane id="edge_start_end_5" index="5" speed="33.33" length="1000.00" shape="0.00,-4.80 1000.00,-4.80"/>
+        <lane id="edge_start_end_6" index="6" speed="33.33" length="1000.00" shape="0.00,-1.60 1000.00,-1.60"/>
+    </edge>
+
+    <junction id="end" type="dead_end" x="1000.00" y="0.00" incLanes="edge_start_end_0 edge_start_end_1 edge_start_end_2 edge_start_end_3 edge_start_end_4 edge_start_end_5 edge_start_end_6" intLanes="" shape="1000.00,-22.40 1000.00,0.00"/>
+    <junction id="start" type="dead_end" x="0.00" y="0.00" incLanes="" intLanes="" shape="0.00,0.00 0.00,-22.40"/>
+
+</net>

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<routes>
+    <vType id="car" accel="2.5" decel="4.5" length="5" maxSpeed="30" sigma="0.5" guiShape="passenger"/>
+    <vType id="truck" accel="1.0" decel="2.0" length="10" maxSpeed="20" sigma="0.5" guiShape="truck"/>
+    <vType id="bus" accel="1.2" decel="2.5" length="12" maxSpeed="25" sigma="0.5" guiShape="bus"/>
+
+    <!-- Heavy traffic -->
+    <flow id="flow_car_heavy" type="car" begin="0" end="600" number="800" from="edge_start_end" to="edge_start_end"
+          departLane="random" departSpeed="random"/>
+    <flow id="flow_truck_heavy" type="truck" begin="0" end="600" number="400" from="edge_start_end" to="edge_start_end"
+          departLane="random" departSpeed="random"/>
+    <flow id="flow_bus_heavy" type="bus" begin="0" end="600" number="240" from="edge_start_end" to="edge_start_end"
+          departLane="random" departSpeed="random"/>
+</routes>

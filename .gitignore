@@ -8,4 +8,5 @@ __pycache__/
 *.dylib
 .vscode/
 simulation_data_log.csv
+mpc_simulation.log
 
