@@ -136,6 +136,8 @@ class PPOAgent:
 
     def update_networks(self):
         # PPO is on-policy, so update after an entire episode (done) or fixed rollout length.
+        if len(self.rewards) == 0:
+            return
         if self.done_flags[-1] == False:
             # If not done, bootstrap value from critic
             last_val = self.critic(torch.FloatTensor(self.states[-1]).unsqueeze(0).to(self.device)).item()

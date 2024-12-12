@@ -570,6 +570,7 @@ def run_episode(mpc, rl_agent, scenario_config, max_steps=3000):
         # For PPO: do NOT update here. We'll update after the episode ends.
         # For SAC or TD3: they may update here. If needed:
         if hasattr(rl_agent, 'update_networks') and not isinstance(rl_agent, PPOAgent):
+            print("Updating for SAC and TD3")
             rl_agent.update_networks()
 
         log_data(step, ego_state, lane_risks, W_s, W_e, W_c, acc_val, jerk_val)
@@ -580,7 +581,11 @@ def run_episode(mpc, rl_agent, scenario_config, max_steps=3000):
 
     # For PPO: update after episode
     if isinstance(rl_agent, PPOAgent):
-        rl_agent.update_networks_end_episode()
+        if len(rl_agent.rewards) > 0:
+            rl_agent.update_networks_end_episode()
+        else:
+            # No data collected this episode, skip update
+            pass
 
     return episode_reward, done, reason_for_termination, avg_jerk, stable_lane_step if stable_lane_step is not None else max_steps
 
