@@ -7,7 +7,7 @@ import traci
 import time
 import logging
 import numpy as np
-
+from models.rl_agent_ppo import PPOAgent
 # Import the MPC controller
 from mpc_controller import MPCController
 
@@ -47,14 +47,14 @@ RISK_OCCUPANCY_MED = 0.2
 RISK_SPEED_LOW = 10.0
 RISK_CLOSE_VEHICLE = 10.0
 
-# Lane speed variations (for demonstration)
+# Lane speed variations
 LANE_SPEEDS = {
-    "edge_start_end_0": 25.0,   # slow lane
-    "edge_start_end_1": 30.0,   # medium speed lane
+    "edge_start_end_0": 33.33,   # slow lane
+    "edge_start_end_1": 33.33,   # medium speed lane
     "edge_start_end_2": 33.33,  # fast lane
-    "edge_start_end_3": 20.0,   # slow lane
-    "edge_start_end_4": 28.0,   # medium speed lane
-    "edge_start_end_5": 30.0,  # fast lane
+    "edge_start_end_3": 33.33,   # slow lane
+    "edge_start_end_4": 33.33,   # medium speed lane
+    "edge_start_end_5": 33.33,  # fast lane
     "edge_start_end_6": 33.33
 }
 
@@ -336,7 +336,7 @@ def randomize_scenario():
 def initialize_logging():
     if LOG_DATA:
         try:
-            with open(LOG_FILE, "w", newline="") as f:
+            with open(LOG_FILE, "a", newline="") as f:
                 writer = csv.writer(f)
                 writer.writerow(["step", "ego_x", "ego_y", "ego_speed", "ego_lane", 
                                 "lane_risks", "W_s", "W_e", "W_c", "acc", "jerk"])
@@ -384,32 +384,71 @@ def construct_rl_state(ego_state, lane_data, lane_risks):
     logger.debug(f"RL State: position_norm={ego_x_norm}, speed_norm={ego_speed}, current_lane_norm={current_lane_norm}, target_lane_norm={target_lane_norm}, lane_features={lane_features}")
     return rl_state
 
-def compute_reward(collision, stable, timeout, safety_violation, lane_data, lane_risks, acc, jerk):
+def compute_reward(collision, stable, timeout, safety_violation, lane_data, lane_risks, acc, jerk, ego_state, target_lane, previous_distance_to_target, previous_lane_index):
     reward = 0.0
     reason = ""
+
+    # Large reward for stable lane convergence
     if stable:
-        reward += 10.0
+        reward += 100.0
         reason += "StableLaneChange "
+
+    # Penalize collisions heavily
     if collision:
-        reward -= 10.0
+        reward -= 100.0
         reason += "Collision "
+
+    # Penalize timeouts moderately
     if timeout:
-        reward -= 5.0
+        reward -= 50.0
         reason += "Timeout "
+
+    # Penalize safety violations mildly
     if safety_violation:
-        reward -= 2.0
+        reward -= 10.0
         reason += "SafetyViolation "
 
+    # Reduced jerk penalty
     if jerk is not None:
-        jerk_penalty = abs(jerk)*0.1
+        jerk_penalty = abs(jerk)*0.001  # smaller penalty
         reward -= jerk_penalty
 
-    return reward, reason.strip()
+    # Reward for making progress towards the target lane
+    current_lane_index = int(ego_state["lane_id"].split("_")[-1])
+    distance_to_target = abs(current_lane_index - target_lane)
+
+    # If we got closer to target lane this step
+    if previous_lane_index is not None:
+        old_distance = abs(previous_lane_index - target_lane)
+        if distance_to_target < old_distance:
+            # Moved one lane closer => +5 reward
+            reward += 5.0
+        elif distance_to_target > old_distance:
+            # Moved away from target lane => -5 reward
+            reward -= 5.0
+
+    # Small positive reward each step without collision/timeouts/safety violation
+    if not collision and not timeout and not safety_violation:
+        reward += 0.2  # increased from 0.1 to give more frequent positive signal
+
+    # Consider penalizing excessive speed if desired (assuming ego_speed in ego_state)
+    ego_speed = ego_state["speed"]
+    max_speed = 33.33
+    if ego_speed > (max_speed * 0.8):
+        # Slight penalty for going too fast if we want to encourage safer speeds
+        reward -= 0.5
+    else:
+        # Slight positive if maintaining moderate speed
+        reward += 0.1
+
+    # Additional small positive reward for surviving a step without collision/timeout
+    reward += 0.1
+
+    return reward, reason.strip(), distance_to_target, current_lane_index
 
 def run_episode(mpc, rl_agent, scenario_config, max_steps=3000):
-    import tqdm
     logger.info(f"Starting run_episode with scenario {scenario_config}.")
-    traci.start(["sumo-gui", "-c", scenario_config, "--start", "--no-step-log", "true"])
+    traci.start(["sumo", "-c", scenario_config, "--start", "--no-step-log", "true"])
 
     WARMUP_STEPS = 500
     logger.info(f"Running warmup for {WARMUP_STEPS} steps to build traffic.")
@@ -428,16 +467,22 @@ def run_episode(mpc, rl_agent, scenario_config, max_steps=3000):
     done = False
     episode_reward = 0.0
     reason_for_termination = ""
+    previous_distance_to_target = None
+    previous_lane_index = None
+    total_jerk = 0.0
+    jerk_count = 0
+    stable_lane_step = None
 
-    pbar = tqdm.tqdm(total=max_steps, desc="Episode Running", leave=False)
-
-    while not done and step < max_steps:
-        if step == 0:
-            for _ in range(20):
-                traci.simulationStep()
+    # Let ego run in same lane for some steps:
+    for _ in range(20):
         traci.simulationStep()
         step += 1
-        pbar.update(1)
+        if step>=max_steps:
+            break
+
+    while not done and step < max_steps:
+        traci.simulationStep()
+        step += 1
 
         if ego_id not in traci.vehicle.getIDList():
             logger.info("Ego vehicle no longer in simulation (possibly route ended).")
@@ -458,6 +503,8 @@ def run_episode(mpc, rl_agent, scenario_config, max_steps=3000):
 
         collision = check_collision(ego_id)
         stable_lane_steps, stable = check_lane_change_completion(ego_id, target_lane, stable_lane_steps)
+        if stable and stable_lane_step is None:
+            stable_lane_step = step
         timeout = check_timeout(step)
         safety_violation = check_safety_violations(lane_data, ego_lane_id)
 
@@ -484,8 +531,18 @@ def run_episode(mpc, rl_agent, scenario_config, max_steps=3000):
             new_lane_index, duration = lane_change_cmd
             traci.vehicle.changeLane(ego_id, new_lane_index, int(duration / 0.1))
 
-        reward, reason_segment = compute_reward(collision, stable, timeout, safety_violation, lane_data, lane_risks, acc_val, jerk_val)
+        reward, reason_segment, distance_to_target, current_lane_index = compute_reward(
+            collision, stable, timeout, safety_violation, lane_data, lane_risks,
+            acc_val, jerk_val, ego_state, target_lane, previous_distance_to_target, previous_lane_index
+        )
+
         episode_reward += reward
+        previous_distance_to_target = distance_to_target
+        previous_lane_index = current_lane_index
+
+        if jerk_val is not None:
+            total_jerk += abs(jerk_val)
+            jerk_count += 1
 
         if (collision or stable or timeout or safety_violation or step>=max_steps) and reason_for_termination=="":
             reason_for_termination = reason_segment if reason_segment!="" else "MaxStepsReached"
@@ -507,19 +564,26 @@ def run_episode(mpc, rl_agent, scenario_config, max_steps=3000):
         else:
             next_rl_state = rl_state
 
+        # Store transitions for all agents
         rl_agent.store_transition(rl_state, np.array([W_s,W_e,W_c],dtype=np.float32), reward, next_rl_state, done)
-        rl_agent.update_networks()
+
+        # For PPO: do NOT update here. We'll update after the episode ends.
+        # For SAC or TD3: they may update here. If needed:
+        if hasattr(rl_agent, 'update_networks') and not isinstance(rl_agent, PPOAgent):
+            rl_agent.update_networks()
 
         log_data(step, ego_state, lane_risks, W_s, W_e, W_c, acc_val, jerk_val)
 
-        # delay = 0.1
-        # time.sleep(delay)
-
     traci.close()
-    logger.info(f"Episode ended with total reward: {episode_reward}")
-    pbar.close()
-    print(f"Episode finished. Reward: {episode_reward:.2f}, Reason: {reason_for_termination}")
-    return episode_reward, done, reason_for_termination
+    avg_jerk = (total_jerk / jerk_count) if jerk_count > 0 else 0.0
+    print(f"Episode finished. Reward: {episode_reward:.2f}, Reason: {reason_for_termination}, AvgJerk: {avg_jerk:.4f}, StableLaneStep: {stable_lane_step}")
+
+    # For PPO: update after episode
+    if isinstance(rl_agent, PPOAgent):
+        rl_agent.update_networks_end_episode()
+
+    return episode_reward, done, reason_for_termination, avg_jerk, stable_lane_step if stable_lane_step is not None else max_steps
+
 
 if __name__ == "__main__":
     # Example usage if you just want to run a single episode with fixed agent (not learning)

@@ -19,7 +19,7 @@ class MLP(nn.Module):
         return self.fc3(x)
 
 class SACAgent:
-    def __init__(self, state_dim, action_dim, lr=3e-4, gamma=0.99, tau=0.005, alpha=0.2, buffer_size=100000, batch_size=64):
+    def __init__(self, state_dim, action_dim, lr=3e-4, gamma=0.97, tau=0.005, alpha=0.2, buffer_size=100000, batch_size=64):
         self.state_dim = state_dim
         self.action_dim = action_dim
         self.gamma = gamma
@@ -44,6 +44,7 @@ class SACAgent:
         self.critic2_target.load_state_dict(self.critic2.state_dict())
 
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        print(f"Training SAC Agent on {self.device}")
         self.to(self.device)
 
     def to(self, device):

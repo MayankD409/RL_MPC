@@ -1,17 +1,19 @@
 import numpy as np
 import random
 import matplotlib.pyplot as plt
-from run_simulation import run_episode, SCENARIO_CONFIG_FILES
+from run_simulation import run_episode
 from mpc_controller import MPCController
-from rl_agent_sac import SACAgent
+from models.rl_agent_ppo import PPOAgent
+from models.rl_agent_td3 import TD3Agent
+from models.rl_agent_sac import SACAgent
 
-# Dummy agent for baseline (fixed weights)
+# Dummy baseline agent with fixed weights
 class FixedWeightAgent:
     def get_action(self, state):
-        # fixed weights
-        return 1.0,1.0,1.0
+        return 1.0, 1.0, 1.0
     def store_transition(self,s,a,r,ns,d): pass
     def update_networks(self): pass
+    def update_networks_end_episode(self): pass
 
 def run_multiple_episodes(agent, mpc, scenario_list, num_episodes=10):
     rewards = []
@@ -19,7 +21,7 @@ def run_multiple_episodes(agent, mpc, scenario_list, num_episodes=10):
     collisions = 0
     for _ in range(num_episodes):
         scenario = random.choice(scenario_list)
-        ep_reward, done, reason = run_episode(mpc, agent, scenario)
+        ep_reward, done, reason, avg_jerk, stable_lane_step = run_episode(mpc, agent, scenario)
         rewards.append(ep_reward)
         if "StableLaneChange" in reason:
             success_counts += 1
@@ -30,24 +32,39 @@ def run_multiple_episodes(agent, mpc, scenario_list, num_episodes=10):
     return rewards, success_rate, collision_rate
 
 if __name__ == "__main__":
+    # Assume we have a trained RL model for comparison
+    # Set agent_type to RL chosen algorithm (PPO, SAC, TD3)
+    agent_type = "SAC"
     state_dim = 25
     action_dim = 3
-    rl_agent = SACAgent(state_dim, action_dim)
-    rl_agent.load_model("sac_model.pth") # Load trained model
-    mpc = MPCController()
 
+    if agent_type == "PPO":
+        agent = PPOAgent(state_dim, action_dim)
+        agent.load_model("model.pth")  # if implemented
+    elif agent_type == "TD3":
+        agent = TD3Agent(state_dim, action_dim)
+        agent.load_model("model.pth")
+    else:
+        agent = SACAgent(state_dim, action_dim)
+        agent.load_model("sac_model.pth")
+
+    mpc = MPCController()
     baseline_agent = FixedWeightAgent()
 
     num_test_episodes = 10
+    SCENARIO_CONFIG_FILES = [
+        "config/sumocfg/seven_lane_light.sumocfg",
+        "config/sumocfg/seven_lane_medium.sumocfg",
+        "config/sumocfg/seven_lane_heavy.sumocfg"
+    ]
 
     # Baseline
     baseline_rewards, baseline_success, baseline_collision = run_multiple_episodes(baseline_agent, mpc, SCENARIO_CONFIG_FILES, num_test_episodes)
 
     # RL
-    rl_rewards, rl_success, rl_collision = run_multiple_episodes(rl_agent, mpc, SCENARIO_CONFIG_FILES, num_test_episodes)
+    rl_rewards, rl_success, rl_collision = run_multiple_episodes(agent, mpc, SCENARIO_CONFIG_FILES, num_test_episodes)
 
-    # Compare
-    # Plot rewards
+    # Compare rewards
     plt.figure()
     plt.boxplot([baseline_rewards, rl_rewards], labels=["Baseline MPC", "RL+MPC"])
     plt.title("Reward Comparison")
@@ -55,7 +72,6 @@ if __name__ == "__main__":
     plt.savefig("compare_rewards.png")
     plt.close()
 
-    # Print success and collision rates
     print("Baseline:", "Success:", baseline_success, "Collision:", baseline_collision)
     print("RL+MPC:", "Success:", rl_success, "Collision:", rl_collision)
 
