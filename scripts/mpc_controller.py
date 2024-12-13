@@ -86,18 +86,11 @@ class MPCController:
             # Determine direction of lane change
             direction = 1 if target_lane > current_lane_index else -1
             next_lane_index = current_lane_index + direction
-            # Construct next_lane_id from current_lane_id
-            # Assuming lanes follow pattern: "edge_name_laneIndex"
-            # We replace the last character (current_lane_index) with next_lane_index
-            # This relies on consistent naming scheme. Adjust if needed.
             next_lane_id = current_lane_id.rsplit("_", 1)[0] + f"_{next_lane_index}"
 
             # Check lane risk of the adjacent lane
             next_lane_risk = lane_risks.get(next_lane_id, 1)
-            # If next lane is safer or at least not worse than current lane, attempt lane change
-            # Or implement any other criterion (like speed advantages)
             if next_lane_risk <= current_lane_risk:
                 lane_change_cmd = (next_lane_index, 2.0)
-            # If not safer, no lane change this step. We'll try again in a future step.
 
         return acc_cmd, lane_change_cmd

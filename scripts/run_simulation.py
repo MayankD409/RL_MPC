@@ -567,8 +567,7 @@ def run_episode(mpc, rl_agent, scenario_config, max_steps=3000):
         # Store transitions for all agents
         rl_agent.store_transition(rl_state, np.array([W_s,W_e,W_c],dtype=np.float32), reward, next_rl_state, done)
 
-        # For PPO: do NOT update here. We'll update after the episode ends.
-        # For SAC or TD3: they may update here. If needed:
+        # For PPO: We'll update after the episode ends.
         if hasattr(rl_agent, 'update_networks') and not isinstance(rl_agent, PPOAgent):
             # print("Updating for SAC and TD3")
             rl_agent.update_networks()
@@ -588,17 +587,3 @@ def run_episode(mpc, rl_agent, scenario_config, max_steps=3000):
             pass
 
     return episode_reward, done, reason_for_termination, avg_jerk, stable_lane_step if stable_lane_step is not None else max_steps
-
-
-if __name__ == "__main__":
-    # Example usage if you just want to run a single episode with fixed agent (not learning)
-    from mpc_controller import MPCController
-    class DummyAgent:
-        def get_action(self, state):
-            return 1.0, 1.0, 1.0
-        def store_transition(self,s,a,r,ns,d): pass
-        def update_networks(self): pass
-
-    scenario = random.choice(SCENARIO_CONFIG_FILES)
-    mpc = MPCController()
-    run_episode(mpc, DummyAgent(), scenario)

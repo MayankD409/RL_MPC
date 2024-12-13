@@ -3,6 +3,10 @@ import random
 import matplotlib.pyplot as plt
 from run_simulation import run_episode
 from mpc_controller import MPCController
+from models.rl_agent_ppo import PPOAgent
+from models.rl_agent_td3 import TD3Agent
+from models.rl_agent_sac import SACAgent
+
 
 # Choose which agent to evaluate
 agent_type = "PPO"
@@ -11,15 +15,12 @@ action_dim = 3
 
 # Load the appropriate agent
 if agent_type == "PPO":
-    from rl_agent_ppo import PPOAgent
     agent = PPOAgent(state_dim, action_dim)
-    agent.load_model("model.pth")  # Ensure you implemented load_model in PPOAgent
+    agent.load_model("model.pth")
 elif agent_type == "TD3":
-    from rl_agent_td3 import TD3Agent
     agent = TD3Agent(state_dim, action_dim)
     agent.load_model("model.pth")
 else:
-    from rl_agent_sac import SACAgent
     agent = SACAgent(state_dim, action_dim)
     agent.load_model("model.pth")
 

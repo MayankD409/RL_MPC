@@ -32,7 +32,7 @@ def run_multiple_episodes(agent, mpc, scenario_list, num_episodes=10):
     return rewards, success_rate, collision_rate
 
 if __name__ == "__main__":
-    # Assume we have a trained RL model for comparison
+
     # Set agent_type to RL chosen algorithm (PPO, SAC, TD3)
     agent_type = "TD3"
     state_dim = 25
@@ -40,7 +40,7 @@ if __name__ == "__main__":
 
     if agent_type == "PPO":
         agent = PPOAgent(state_dim, action_dim)
-        agent.load_model("model.pth")  # if implemented
+        agent.load_model("model.pth")
     elif agent_type == "TD3":
         agent = TD3Agent(state_dim, action_dim)
         agent.load_model("model.pth")
