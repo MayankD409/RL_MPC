@@ -2,6 +2,9 @@
 
 This project implements a reinforcement learning (RL) agent integrated with a Model Predictive Controller (MPC) for autonomous driving simulations using SUMO (Simulation of Urban MObility). The RL agent learns to adjust the weights of the MPC cost function to optimize vehicle control in various traffic scenarios.
 
+![SUMO Simulation](sumo.png)
+
+
 ## Table of Contents
 
 - [Project Structure](#project-structure)
