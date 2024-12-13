@@ -19,25 +19,6 @@ class PPOActor(nn.Module):
         log_std = self.log_std.clamp(-20, 2)
         return mean, log_std
 
-    def get_action(self, state):
-        mean, log_std = self.forward(state)
-        std = torch.exp(log_std)
-        normal = torch.randn_like(mean)
-        action = torch.tanh(mean + std*normal)
-        # Scale action appropriately if needed
-        W_s, W_e, W_c = action[0]
-        # Map [-1,1] to [0.1,5.0] as before
-        def scale(x): return 0.1 + (x+1)*(5.0-0.1)/2
-        return scale(W_s.item()), scale(W_e.item()), scale(W_c.item())
-
-    def log_prob(self, state, action_raw):
-        # action_raw expected in [-1,1]
-        mean, log_std = self.forward(state)
-        std = torch.exp(log_std)
-        normal = (action_raw - mean)/std
-        log_prob = -0.5 * normal.pow(2) - log_std - np.log(np.sqrt(2*np.pi))
-        return log_prob.sum(dim=-1)
-
 class PPOCritic(nn.Module):
     def __init__(self, state_dim, hidden=256):
         super(PPOCritic, self).__init__()
@@ -74,6 +55,7 @@ class PPOAgent:
         self.done_flags = []
 
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        print(f"Training SAC Agent on {self.device}")
         self.to(self.device)
 
     def to(self, device):
@@ -90,16 +72,11 @@ class PPOAgent:
         def scale(x): return 0.1 + (x+1)*(5.0-0.1)/2
         W_s, W_e, W_c = scale(action_raw[0,0].item()), scale(action_raw[0,1].item()), scale(action_raw[0,2].item())
 
-        # Store log_prob
-        # To get log_prob:
-        action_flat = action_raw
-        log_prob = -0.5 * ((action_flat - mean)/std).pow(2) - log_std - np.log(np.sqrt(2*np.pi))
+        # Compute log_prob
+        log_prob = -0.5 * ((action_raw - mean)/std).pow(2) - log_std - np.log(np.sqrt(2*np.pi))
         log_prob = log_prob.sum(dim=-1)
-
         value = self.critic(state_t).squeeze(0)
-        self.last_value = value.item()
 
-        # Store transition temporarily, append after step execution in run_episode
         self.current_state = state
         self.current_action_raw = action_raw[0].detach().cpu().numpy()
         self.current_log_prob = log_prob.detach().cpu().numpy().item()
@@ -108,8 +85,6 @@ class PPOAgent:
         return W_s, W_e, W_c
 
     def store_transition(self, state, action, reward, next_state, done):
-        # action here is scaled weights, we need to store raw action or re-compute log prob if needed.
-        # We already have current_action_raw from get_action step.
         self.states.append(self.current_state)
         self.actions.append(self.current_action_raw)
         self.rewards.append(reward)
@@ -118,7 +93,6 @@ class PPOAgent:
         self.done_flags.append(done)
 
     def finish_path(self, last_val=0):
-        # Compute GAE-lambda returns and advantages
         path_len = len(self.rewards)
         advantages = np.zeros(path_len)
         returns = np.zeros(path_len)
@@ -131,33 +105,27 @@ class PPOAgent:
             delta = self.rewards[t] + self.gamma*next_val*(1-self.done_flags[t]) - self.values[t]
             advantages[t] = last_gae_lam = delta + self.gamma*self.lam*(1-self.done_flags[t])*last_gae_lam
         returns = advantages + np.array(self.values)
-
         return advantages, returns
 
     def update_networks(self):
-        # PPO is on-policy, so update after an entire episode (done) or fixed rollout length.
         if len(self.rewards) == 0:
             return
         if self.done_flags[-1] == False:
-            # If not done, bootstrap value from critic
             last_val = self.critic(torch.FloatTensor(self.states[-1]).unsqueeze(0).to(self.device)).item()
         else:
             last_val = 0
 
         advantages, returns = self.finish_path(last_val)
-
         states = torch.FloatTensor(self.states).to(self.device)
         actions = torch.FloatTensor(self.actions).to(self.device)
         returns_t = torch.FloatTensor(returns).to(self.device)
         advantages_t = torch.FloatTensor(advantages).to(self.device)
         old_log_probs = torch.FloatTensor(self.log_probs).to(self.device)
 
-        # Normalize advantages
         advantages_t = (advantages_t - advantages_t.mean())/(advantages_t.std() + 1e-8)
 
-        # PPO update
+        # PPO updates
         for i in range(self.update_iters):
-            # Shuffle and batch
             idx = np.arange(len(states))
             np.random.shuffle(idx)
 
@@ -191,9 +159,6 @@ class PPOAgent:
                 critic_loss.backward()
                 self.critic_optim.step()
 
-            # Could check KL divergence and early stop updates if KL > target_kl
-
-        # Clear buffers
         self.states = []
         self.actions = []
         self.rewards = []
@@ -202,5 +167,15 @@ class PPOAgent:
         self.done_flags = []
 
     def update_networks_end_episode(self):
-        # Just alias for consistency: PPO updates after entire episode
         self.update_networks()
+
+    def save_model(self, filename):
+        torch.save({
+            'actor': self.actor.state_dict(),
+            'critic': self.critic.state_dict()
+        }, filename)
+
+    def load_model(self, filename):
+        checkpoint = torch.load(filename, map_location=self.device)
+        self.actor.load_state_dict(checkpoint['actor'])
+        self.critic.load_state_dict(checkpoint['critic'])

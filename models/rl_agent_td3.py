@@ -62,6 +62,7 @@ class TD3Agent:
         self.total_it = 0
 
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        print(f"Training SAC Agent on {self.device}")
         self.to(self.device)
 
     def to(self, device):
@@ -133,7 +134,7 @@ class TD3Agent:
             actor_loss.backward()
             self.actor_optim.step()
 
-            # Soft update
+            # Soft update targets
             for param, target_param in zip(self.actor.parameters(), self.actor_target.parameters()):
                 target_param.data.copy_(self.tau*param.data + (1-self.tau)*target_param.data)
             for param, target_param in zip(self.critic1.parameters(), self.critic1_target.parameters()):
@@ -142,5 +143,24 @@ class TD3Agent:
                 target_param.data.copy_(self.tau*param.data + (1-self.tau)*target_param.data)
 
     def update_networks_end_episode(self):
-        # TD3 updates continuously, no special end episode update needed.
+        # TD3 updates continuously, no special end-of-episode update needed
         pass
+
+    def save_model(self, filename):
+        torch.save({
+            'actor': self.actor.state_dict(),
+            'critic1': self.critic1.state_dict(),
+            'critic2': self.critic2.state_dict(),
+            'actor_target': self.actor_target.state_dict(),
+            'critic1_target': self.critic1_target.state_dict(),
+            'critic2_target': self.critic2_target.state_dict()
+        }, filename)
+
+    def load_model(self, filename):
+        checkpoint = torch.load(filename, map_location=self.device)
+        self.actor.load_state_dict(checkpoint['actor'])
+        self.critic1.load_state_dict(checkpoint['critic1'])
+        self.critic2.load_state_dict(checkpoint['critic2'])
+        self.actor_target.load_state_dict(checkpoint['actor_target'])
+        self.critic1_target.load_state_dict(checkpoint['critic1_target'])
+        self.critic2_target.load_state_dict(checkpoint['critic2_target'])
