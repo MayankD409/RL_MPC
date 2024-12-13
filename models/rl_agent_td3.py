@@ -62,7 +62,7 @@ class TD3Agent:
         self.total_it = 0
 
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        print(f"Training SAC Agent on {self.device}")
+        print(f"Training TD3 Agent on {self.device}")
         self.to(self.device)
 
     def to(self, device):
