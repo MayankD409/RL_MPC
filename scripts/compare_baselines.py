@@ -34,7 +34,7 @@ def run_multiple_episodes(agent, mpc, scenario_list, num_episodes=10):
 if __name__ == "__main__":
     # Assume we have a trained RL model for comparison
     # Set agent_type to RL chosen algorithm (PPO, SAC, TD3)
-    agent_type = "SAC"
+    agent_type = "TD3"
     state_dim = 25
     action_dim = 3
 
@@ -66,7 +66,7 @@ if __name__ == "__main__":
 
     # Compare rewards
     plt.figure()
-    plt.boxplot([baseline_rewards, rl_rewards], labels=["Baseline MPC", "RL+MPC"])
+    plt.boxplot([baseline_rewards, rl_rewards], labels=["Baseline", "RL+MPC"])
     plt.title("Reward Comparison")
     plt.ylabel("Episode Reward")
     plt.savefig("compare_rewards.png")
@@ -77,7 +77,7 @@ if __name__ == "__main__":
 
     # Bar chart for success and collision
     fig, ax = plt.subplots(1,2,figsize=(10,5))
-    ax[0].bar(["Baseline","RL+MPC"], [baseline_success, rl_success])
+    ax[0].bar(["RL+MPC","Baseline"], [baseline_success, rl_success])
     ax[0].set_title("Success Rate")
     ax[0].set_ylim([0,1])
     ax[1].bar(["Baseline","RL+MPC"], [baseline_collision, rl_collision])

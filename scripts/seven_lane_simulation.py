@@ -32,7 +32,7 @@ SCENARIO_CONFIG_FILES = [
 
 # Set a random scenario for diversity
 # SELECTED_CONFIG = random.choice(SCENARIO_CONFIG_FILES)
-SELECTED_CONFIG = "config/sumocfg/seven_lane_heavy.sumocfg"
+SELECTED_CONFIG = "config/sumocfg/seven_lane_light.sumocfg"
 
 # -------------------------------
 # Configuration Parameters

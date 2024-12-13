@@ -61,6 +61,9 @@ class MPCController:
         for k in range(self.horizon+1):
             constraints += [v[k] >= 0, v[k] <= self.max_speed]
 
+        if math.isnan(desired_speed) or math.isinf(desired_speed):
+            desired_speed = self.max_speed  # fallback
+
         cost = 0
         for k in range(self.horizon+1):
             cost += self.W_e * cp.square(v[k] - desired_speed)

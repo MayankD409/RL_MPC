@@ -10,7 +10,7 @@ from models.rl_agent_td3 import TD3Agent
 from models.rl_agent_sac import SACAgent
 
 # Choose agent type:
-agent_type = "PPO"  # or "SAC" or "TD3"
+agent_type = "TD3"  # or "SAC" or "TD3"
 
 state_dim = 25
 action_dim = 3
@@ -24,7 +24,7 @@ else:
 
 mpc = MPCController()
 
-num_episodes = 500
+num_episodes = 100
 results_folder = f"results/{num_episodes}_{agent_type}"
 
 # Create results folder if it doesn't exist
